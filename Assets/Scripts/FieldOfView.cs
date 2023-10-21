@@ -1,72 +1,72 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 public class FieldOfView : MonoBehaviour
 {
-    private PlayerController playerController;
-    public Transform fovPoint;
-    private void Start() {
-        playerController = GetComponent<PlayerController>();
+    public Material visionConeMaterial;
+    public float visionRange;
+    public float visionAngle;
+    public LayerMask visionObstructingLayer;//layer with objects that obstruct the enemy view, like walls, for example
+    public int rayCount = 50;//the vision cone will be made up of triangles, the higher this value is the pretier the vision cone will be
+    Mesh visionConeMesh;
+    MeshFilter meshFilter_;
+
+    private void Awake() {
+        visionAngle = 90f;
+        visionRange = 10f;
     }
 
-    private void Update() {
-        Mesh mesh = new Mesh();
-        GetComponent<MeshFilter>().mesh = mesh;
+    void Start() {
+        transform.AddComponent<MeshRenderer>().material = visionConeMaterial;
+        meshFilter_ = transform.AddComponent<MeshFilter>();
+        visionConeMesh = new Mesh();
+        visionAngle *= Mathf.Deg2Rad;
+    }
 
-        float fov = 90f;
-        Vector3 position = new Vector3(transform.position.normalized.x, transform.position.normalized.y, transform.position.normalized.z + 1f);
-        Vector3 origin = position;
-        int rayCount = 50;
-        float angle = 120f;
-        float angleIncrease = fov / rayCount;
-        float viewDistance = 10f;
+    void Update() {
+        DrawVisionCone();
+    }
 
-        Vector3[] vertices = new Vector3[rayCount + 1 + 1];
-        Vector2[] uv = new Vector2[vertices.Length];
-        int[] triangles = new int[rayCount * 3];
+    void DrawVisionCone() {
+        int[] triangles = new int[(rayCount - 1) * 3];
+        Vector3[] vertices = new Vector3[rayCount + 1];
+        vertices[0] = Vector3.zero;
+        float currentAngle = -visionAngle / 2;
+        float angleIcrement = visionAngle / (rayCount - 1);
+        float sine;
+        float cosine;
 
-        vertices[0] = origin;
-
-        int vertexIndex = 1;
-        int triangleIndex = 0;
-        for (int i = 1; i <= rayCount; i++) {
-            Vector3 vertex;
-            bool foundHit = Physics.Raycast(origin, UtilsClass.GetVectorFromAngle(angle), out RaycastHit raycastHit, viewDistance);
-            //Debug.Log(foundHit);
-            if (!foundHit) {
-                // No Hit
-                vertex = origin + UtilsClass.GetVectorFromAngle(angle) * viewDistance;
+        for (int i = 0; i < rayCount; i++) {
+            sine = Mathf.Sin(currentAngle);
+            cosine = Mathf.Cos(currentAngle);
+            Vector3 raycastDirection = GetVectorFromZXAndAngle(transform.forward, transform.right, currentAngle);
+            Vector3 vertForward = GetVectorFromZXAndAngle(Vector3.forward, Vector3.right, currentAngle);
+            if (Physics.Raycast(transform.position, raycastDirection, out RaycastHit hit, visionRange, visionObstructingLayer)) {
+                vertices[i + 1] = vertForward * hit.distance;
             } else {
-                // Hit object
-                //Debug.Log("hitting something");
-                vertex = raycastHit.point;
+                vertices[i + 1] = vertForward * visionRange;
             }
-            vertices[vertexIndex] = vertex;
 
-            if (i > 0) {
-                triangles[triangleIndex + 0] = 0;
-                triangles[triangleIndex + 1] = vertexIndex - 1;
-                triangles[triangleIndex + 2] = vertexIndex;
-
-                triangleIndex += 3;
-            }
-            vertexIndex++;
-
-            angle -= angleIncrease;
+            currentAngle += angleIcrement;
         }
+        for (int i = 0, j = 0; i < triangles.Length; i += 3, j++) {
+            triangles[i] = 0;
+            triangles[i + 1] = j + 1;
+            triangles[i + 2] = j + 2;
+        }
+        visionConeMesh.Clear();
+        visionConeMesh.vertices = vertices;
+        visionConeMesh.triangles = triangles;
+        meshFilter_.mesh = visionConeMesh;
+    }
 
-        mesh.vertices = vertices;
-        mesh.uv = uv;
-        mesh.triangles = triangles;
-
-        /*        if(Physics.Raycast(transform.position, transform.TransformDirection(Vector3.forward), out RaycastHit raycastHit, 10f)) {
-                    Debug.Log("hit something");
-                    Debug.DrawRay(transform.position, transform.TransformDirection(Vector3.forward) * raycastHit.distance, Color.red);
-                } else {
-                    Debug.Log("nothing hit");
-                    Debug.DrawRay(transform.position, transform.TransformDirection(Vector3.forward) * 10f, Color.blue);
-                }*/
+    private Vector3 GetVectorFromZXAndAngle(Vector3 zInWorldSpace, Vector3 xInWorldSpace, float currentAngle) {
+        float sine = Mathf.Sin(currentAngle);
+        float cosine = Mathf.Cos(currentAngle);
+        return zInWorldSpace * cosine + xInWorldSpace * sine;
     }
 }
