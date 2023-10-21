@@ -8,6 +8,7 @@ public class PlayerController : MonoBehaviour
 {
     [SerializeField] private float moveSpeed = 7f;
     [SerializeField] private float rotateSpeed = 7f;
+    public Vector3 moveDir = Vector3.zero;
 
 
     private InputManager inputManager;
@@ -28,7 +29,7 @@ public class PlayerController : MonoBehaviour
 
     public void MovePlayer() {
         Vector2 inputVector = GetMovementVectorNormalized();
-        Vector3 moveDir = new Vector3(inputVector.x, 0f, inputVector.y);
+        moveDir = new Vector3(inputVector.x, 0f, inputVector.y);
 
         float moveDistance = moveSpeed * Time.deltaTime;
         transform.position += moveDir * moveDistance;
