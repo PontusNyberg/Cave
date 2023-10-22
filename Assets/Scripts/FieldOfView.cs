@@ -69,4 +69,4 @@ public class FieldOfView : MonoBehaviour
         float cosine = Mathf.Cos(currentAngle);
         return zInWorldSpace * cosine + xInWorldSpace * sine;
     }
-}
+} 
