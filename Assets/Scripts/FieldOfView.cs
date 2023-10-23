@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -8,6 +9,7 @@ using UnityEngine.UIElements;
 public class FieldOfView : MonoBehaviour
 {
     [SerializeField] private string objectIsShowingTag = "HitObjectIsShowing";
+
     public Material visionConeMaterial;
     public float visionRange;
     public float visionAngle;
@@ -49,17 +51,25 @@ public class FieldOfView : MonoBehaviour
             cosine = Mathf.Cos(currentAngle);
             Vector3 raycastDirection = GetVectorFromZXAndAngle(transform.forward, transform.right, currentAngle);
             Vector3 vertForward = GetVectorFromZXAndAngle(Vector3.forward, Vector3.right, currentAngle);
-            if (Physics.Raycast(transform.position, raycastDirection, out RaycastHit hit, visionRange, visionObstructingLayer)) {
-                Debug.Log("Hit something");
-                vertices[i + 1] = vertForward * hit.distance;
-                ShowObjects(hit);
-            } else {
-                Debug.Log("Hit nothing");
-                vertices[i + 1] = vertForward * visionRange;
+            //if (Physics.Raycast(transform.position, raycastDirection, out RaycastHit hit, visionRange, visionObstructingLayer)) {
+            RaycastHit[] hits = Physics.RaycastAll(transform.position, raycastDirection, visionRange, visionObstructingLayer);
+            for (int j = 0; j < hits.Count(); j++) {
+                RaycastHit hit = hits[j];
+                Transform hitObject = hit.transform;
+                Renderer hitObjectRenderer = hitObject.GetComponent<Renderer>();
+                if(hitObjectRenderer != null) {
+                    Debug.Log("Hit something");
+                    vertices[i + 1] = vertForward * hit.distance;
+                    ShowObjects(hitObject, hitObjectRenderer);
+                } else {
+                    Debug.Log("Hit nothing");
+                    vertices[i + 1] = vertForward * visionRange;
+                }
             }
-
             currentAngle += angleIcrement;
         }
+
+
         for (int i = 0, j = 0; i < triangles.Length; i += 3, j++) {
             triangles[i] = 0;
             triangles[i + 1] = j + 1;
@@ -71,15 +81,13 @@ public class FieldOfView : MonoBehaviour
         meshFilter_.mesh = visionConeMesh;
     }
 
-    private void ShowObjects(RaycastHit hit) {
+    private void ShowObjects(Transform hitObject, Renderer hitObjectRenderer) {
         if (recentHitObject != null) {
             Renderer recentHitObjectRenderer = recentHitObject.GetComponent<Renderer>();
             recentHitObjectRenderer.enabled = true;
             recentHitObject = null;
         }
 
-        Transform hitObject = hit.transform;
-        Renderer hitObjectRenderer = hitObject.GetComponent<Renderer>();
         if (hitObject.CompareTag(objectIsShowingTag)) {
             if (hitObjectRenderer != null) {
                 hitObjectRenderer.enabled = false;
